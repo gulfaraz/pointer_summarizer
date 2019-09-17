@@ -32,11 +32,11 @@ class Vocab(object):
       self._count += 1
 
     # Read the vocab file and add words up to max_size
-    with open(vocab_file, 'r') as vocab_f:
+    with open(vocab_file, 'rb') as vocab_f: #encoding="utf8"
       for line in vocab_f:
         pieces = line.split()
         if len(pieces) != 2:
-          print 'Warning: incorrectly formatted line in vocabulary file: %s\n' % line
+          print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
           continue
         w = pieces[0]
         if w in [SENTENCE_START, SENTENCE_END, UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
@@ -47,10 +47,10 @@ class Vocab(object):
         self._id_to_word[self._count] = w
         self._count += 1
         if max_size != 0 and self._count >= max_size:
-          print "max_size of vocab was specified as %i; we now have %i words. Stopping reading." % (max_size, self._count)
+          print("max_size of vocab was specified as %i; we now have %i words. Stopping reading." % (max_size, self._count))
           break
 
-    print "Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1])
+    print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
   def word2id(self, word):
     if word not in self._word_to_id:
@@ -66,8 +66,8 @@ class Vocab(object):
     return self._count
 
   def write_metadata(self, fpath):
-    print "Writing word embedding metadata file to %s..." % (fpath)
-    with open(fpath, "w") as f:
+    print("Writing word embedding metadata file to %s..." % (fpath))
+    with open(fpath, "wb") as f:
       fieldnames = ['word']
       writer = csv.DictWriter(f, delimiter="\t", fieldnames=fieldnames)
       for i in xrange(self.size()):
@@ -91,7 +91,7 @@ def example_generator(data_path, single_pass):
         example_str = struct.unpack('%ds' % str_len, reader.read(str_len))[0]
         yield example_pb2.Example.FromString(example_str)
     if single_pass:
-      print "example_generator completed reading all datafiles. No more data."
+      print("example_generator completed reading all datafiles. No more data.")
       break
 
 
@@ -144,12 +144,14 @@ def outputids2words(id_list, vocab, article_oovs):
 
 
 def abstract2sents(abstract):
+  s_start = bytes('<s>', encoding='utf-8')
+  s_end = bytes('</s>', encoding='utf-8')
   cur = 0
   sents = []
   while True:
     try:
-      start_p = abstract.index(SENTENCE_START, cur)
-      end_p = abstract.index(SENTENCE_END, start_p + 1)
+      start_p = abstract.index(s_start, cur)
+      end_p = abstract.index(s_end, start_p + 1)
       cur = end_p + len(SENTENCE_END)
       sents.append(abstract[start_p+len(SENTENCE_START):end_p])
     except ValueError as e: # no more sentences

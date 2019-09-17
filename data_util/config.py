@@ -1,13 +1,13 @@
 import os
 
-root_dir = os.path.expanduser("~")
+root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))#os.path.("~")
 
-#train_data_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/train.bin")
-train_data_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/chunked/train_*")
-eval_data_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/val.bin")
-decode_data_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/test.bin")
-vocab_path = os.path.join(root_dir, "ptr_nw/cnn-dailymail-master/finished_files/vocab")
-log_root = os.path.join(root_dir, "ptr_nw/log")
+#train_data_path = os.path.join(root_dir, "data/finished_files/train.bin")
+train_data_path = os.path.join(root_dir, "data/finished_files/chunked/train_*")
+eval_data_path = os.path.join(root_dir, "data/finished_files/val.bin")
+decode_data_path = os.path.join(root_dir, "data/finished_files/test.bin")
+vocab_path = os.path.join(root_dir, "data/finished_files/vocab")
+log_root = os.path.join(root_dir, "data/log")
 
 # Hyperparameters
 hidden_dim= 256
@@ -30,8 +30,9 @@ is_coverage = False
 cov_loss_wt = 1.0
 
 eps = 1e-12
-max_iterations = 500000
+max_iterations = 50 #steps (not epochs)
 
 use_gpu=True
 
 lr_coverage=0.15
+

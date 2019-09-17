@@ -1,2 +1,7 @@
 *.pyc 
 *.bin
+*.xml
+*.iml
+*.DESKTOP-TEJDDRI
+*.zip
+data/finished_files/vocab
