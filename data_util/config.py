@@ -30,7 +30,7 @@ is_coverage = False
 cov_loss_wt = 1.0
 
 eps = 1e-12
-max_iterations = 50 #steps (not epochs)
+max_iterations = 10000 #steps (not epochs)
 
 use_gpu=True
 

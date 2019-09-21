@@ -13,6 +13,8 @@ def print_results(article, abstract, decoded_output):
 
 
 def make_html_safe(s):
+  if type(s) is not str:
+    s = s.decode()
   s.replace("<", "&lt;")
   s.replace(">", "&gt;")
   return s
