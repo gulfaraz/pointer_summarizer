@@ -3,6 +3,8 @@ from __future__ import unicode_literals, print_function, division
 import os
 import time
 import argparse
+import sys
+sys.path.append('..')
 
 import tensorflow as tf
 import torch
@@ -34,7 +36,7 @@ class Train(object):
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
 
-        self.summary_writer = tf.summary.FileWriter(train_dir)
+        self.summary_writer = tf.compat.v1.summary.FileWriter(train_dir)
 
     def save_model(self, running_avg_loss, iter):
         state = {
@@ -49,7 +51,7 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, model_file_path=None):
-        self.model = Model(model_file_path)
+        self.model = Model(vocab = self.vocab, model_file_path = model_file_path)
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())

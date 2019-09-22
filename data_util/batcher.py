@@ -10,10 +10,11 @@ from threading import Thread
 import numpy as np
 import tensorflow as tf
 
-import config
-import data
+from data_util import config
+from data_util import data
 
 import random
+import sys
 random.seed(1234)
 
 
@@ -29,7 +30,7 @@ class Example(object):
     if len(article_words) > config.max_enc_steps:
       article_words = article_words[:config.max_enc_steps]
     self.enc_len = len(article_words) # store the length after truncation but before padding
-    self.enc_input = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
+    self.enc_input = [vocab.word2id(w.decode('utf-8')) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Process the abstract
     abstract = ' '.join(str(abstract_sentences)) # string
@@ -197,7 +198,7 @@ class Batcher(object):
     if self._batch_queue.qsize() == 0:
       tf.logging.warning('Bucket input queue is empty when calling next_batch. Bucket queue size: %i, Input queue size: %i', self._batch_queue.qsize(), self._example_queue.qsize())
       if self._single_pass and self._finished_reading:
-        tf.logging.info("Finished reading dataset in single_pass mode.")
+        tf.compat.v1.logging.info("Finished reading dataset in single_pass mode.")
         return None
 
     batch = self._batch_queue.get() # get the next Batch
@@ -210,9 +211,9 @@ class Batcher(object):
       try:
         (article, abstract) = input_gen.__next__() # read the next example from file. article and abstract are both strings.
       except StopIteration: # if there are no more examples:
-        tf.logging.info("The example generator for this example queue filling thread has exhausted data.")
+        tf.compat.v1.logging.info("The example generator for this example queue filling thread has exhausted data.")
         if self._single_pass:
-          tf.logging.info("single_pass mode is on, so we've finished reading dataset. This thread is stopping.")
+          tf.compat.v1.logging.info("single_pass mode is on, so we've finished reading dataset. This thread is stopping.")
           self._finished_reading = True
           break
         else:
@@ -247,7 +248,7 @@ class Batcher(object):
 
   def watch_threads(self):
     while True:
-      tf.logging.info(
+      tf.compat.v1.logging.info(
         'Bucket queue size: %i, Input queue size: %i',
         self._batch_queue.qsize(), self._example_queue.qsize())
 
