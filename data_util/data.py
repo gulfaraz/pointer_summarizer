@@ -6,12 +6,11 @@ import struct
 import csv
 from tensorflow.core.example import example_pb2
 
-from flair.embeddings import WordEmbeddings
-from flair.data import Sentence
 from data_util import config
 import torch
 import numpy as np
 import sys
+from torchnlp.word_to_vector import GloVe
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
 SENTENCE_START = '<s>'
@@ -33,7 +32,7 @@ class Vocab(object):
     self._count = 0 # keeps track of total number of words in the Vocab
 
     # Creating GloVe vectors
-    glove_dict = WordEmbeddings('glove')
+    glove_dict = GloVe(name='6B')
     glove_embedding_matrix = np.zeros((max_size, config.emb_dim))
 
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
@@ -42,9 +41,8 @@ class Vocab(object):
       self._id_to_word[self._count] = w
 
       # If token in glove dictionary
-      s = Sentence(str(w))
-      glove_dict.embed(s)
-      glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
+      glove_embedding = glove_dict[w]
+      glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
         
       self._count += 1
 
@@ -66,9 +64,8 @@ class Vocab(object):
         self._id_to_word[self._count] = w
 
         # If token in glove dictionary
-        s = Sentence(str(w))
-        glove_dict.embed(s)
-        glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
+        glove_embedding = glove_dict[w]
+        glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
 
         self._count += 1
         if max_size != 0 and self._count >= max_size:
