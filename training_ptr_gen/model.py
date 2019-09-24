@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from data_util import config
 from numpy import random
 
-#from allennlp.modules.elmo import Elmo, batch_to_ids
+from allennlp.modules.elmo import Elmo, batch_to_ids
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
@@ -44,6 +44,18 @@ def init_wt_normal(wt):
 def init_wt_unif(wt):
     wt.data.uniform_(-config.rand_unif_init_mag, config.rand_unif_init_mag)
 
+def convert_input_to_string_sequence(input, vocab):
+
+    input_string_sequence = []
+
+    for sentence in input:
+            input_string_sequence.append([vocab._id_to_word[word_id.item()] for word_id in sentence])
+
+    return input_string_sequence
+
+# Creating an instance of the ELMo class
+elmo = Elmo(config.options_file, config.weight_file, 2, dropout = 0)
+
 class Encoder(nn.Module):
     def __init__(self, vocab):
         super(Encoder, self).__init__()
@@ -61,27 +73,26 @@ class Encoder(nn.Module):
         # Input is a tensor of size Num_Sentence X Max_Sentence_Length (Each value is the index of the word in the embedding)
         # Input = Tensor([[10, 20, 30, ...], [40, 50, 60, ....]])
 
-        # Creating an instance of the ELMo class
-        #elmo = ELMo(config.options_file, config.weight_file, 2, dropout = 0)
-
         # Obtaining a list of lists where each sublist is a tokenized sentence
-        #input_string_sequence = self.convert_input_to_string_sequence(input, vocab)
+        input_string_sequence = convert_input_to_string_sequence(input, self.vocab)
 
         # Obtaining the character ids for ELMo
-        #character_ids = batch_to_ids(input_string_sequence)
+        character_ids = batch_to_ids(input_string_sequence)
 
         # Obtaining the ELMo embeddings
-        #elmo_embeddings = elmo(character_ids)
-        #elmo_embeddings = elmo_embeddings['elmo_representations'][0]
-        #print(elmo_embeddings.size())
+        elmo_embeddings = elmo(character_ids)
+        elmo_embeddings = elmo_embeddings['elmo_representations'][0]
+        # print(elmo_embeddings.size())
+        # sys.exit()
 
 
         # Obtaining the GloVe Embeddings
         # print(self.vocab.glove_embedding_matrix(torch.LongTensor(input[0][0])))
-        print(input)
-        embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
-        print(embedded)
-        #print(embedded.size())
+        # print(input)
+        glove_embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size 
+        embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
+        # print(embedded)
+        # print(embedded.size())
         #sys.exit()
 
         packed = pack_padded_sequence(embedded, seq_lens, batch_first=True)
@@ -94,16 +105,6 @@ class Encoder(nn.Module):
         encoder_feature = self.W_h(encoder_feature)
 
         return encoder_outputs, encoder_feature, hidden
-
-    # def convert_input_to_string_sequence(self, input, vocab):
-
-    #     input_string_sequence = []
-
-    #     for sentence in input:
-    #             input_string_sequence.append([vocab._id_to_word[word_id] for word_id in sentence])
-
-    #     return input_string_sequence
-
 
 class ReduceState(nn.Module):
     def __init__(self):
@@ -199,7 +200,18 @@ class Decoder(nn.Module):
             coverage = coverage_next
 
         # y_t_1_embd = embedding(y_t_1)
-        y_t_1_embd = self.vocab.glove_embedding_matrix(y_t_1)
+        input_string_sequence = [[self.vocab._id_to_word[id.item()]] for id in y_t_1]
+        # Obtaining the character ids for ELMo
+        character_ids = batch_to_ids(input_string_sequence)
+        # Obtaining the ELMo embeddings
+        elmo_embeddings = elmo(character_ids)
+        y_t_1_elmo_embd = elmo_embeddings['elmo_representations'][0]
+        y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
+        #print(y_t_1_elmo_embd.size())
+        
+        y_t_1_glove_embd = self.vocab.glove_embedding_matrix(y_t_1)
+        #print(y_t_1_glove_embd.size())
+        y_t_1_embd = torch.cat((y_t_1_glove_embd, y_t_1_elmo_embd), dim = 1)
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
         lstm_out, s_t = self.lstm(x.unsqueeze(1), s_t_1)
 
