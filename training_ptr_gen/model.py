@@ -78,9 +78,9 @@ class Encoder(nn.Module):
 
         # Obtaining the GloVe Embeddings
         # print(self.vocab.glove_embedding_matrix(torch.LongTensor(input[0][0])))
-        print(input)
+        # print(input)
         embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
-        print(embedded)
+        # print(embedded)
         #print(embedded.size())
         #sys.exit()
 
