@@ -75,6 +75,7 @@ class Vocab(object):
     # Creating a GloVe embedding matrix
     self.glove_embedding_matrix = torch.nn.Embedding(max_size, config.emb_dim)
     self.glove_embedding_matrix.weight.data.copy_(torch.from_numpy(glove_embedding_matrix))
+    self.glove_embedding_matrix.weight.requires_grad = True
 
     print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
