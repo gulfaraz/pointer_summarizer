@@ -249,9 +249,6 @@ class BayesianDropout:
         enc_batch = input_['enc_batch']
         enc_lens = input_['enc_lens']
 
-        encoder_result = self.model.encoder(enc_batch, enc_lens)
-        encoder_outputs, encoder_feature, encoder_hidden = encoder_result
-
         result = defaultdict(list)
         for step, (token,
                    log_prob,
@@ -260,6 +257,8 @@ class BayesianDropout:
                    coverage) in enumerate(conditioning_summary.iterator()):
 
             for experiment in trange(num_experiments):
+                encoder_result = self.model.encoder(enc_batch, enc_lens)
+                encoder_outputs, encoder_feature, encoder_hidden = encoder_result
 
                 # TODO Is this what it supposed to be?
                 latest_tokens = [token for _ in range(config.beam_size)]
