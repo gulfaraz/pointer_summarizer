@@ -29,7 +29,7 @@ class Example(object):
     if len(article_words) > config.max_enc_steps:
       article_words = article_words[:config.max_enc_steps]
     self.enc_len = len(article_words) # store the length after truncation but before padding
-    self.enc_input = [vocab.word2id(w '''replace with w.decode('utf-8')''') for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
+    self.enc_input = [vocab.word2id(w.decode('utf-8')) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Process the abstract
     abstract = ' '.join(str(abstract_sentences)) # string
@@ -209,6 +209,7 @@ class Batcher(object):
     while True:
       try:
         (article, abstract) = input_gen.__next__() # read the next example from file. article and abstract are both strings.
+        print(abstract)
       except StopIteration: # if there are no more examples:
         tf.logging.info("The example generator for this example queue filling thread has exhausted data.")
         if self._single_pass:
