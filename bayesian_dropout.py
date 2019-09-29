@@ -13,6 +13,8 @@ import time
 from argparse import ArgumentParser
 from collections import defaultdict
 
+from tqdm import trange
+
 import torch
 from torch.autograd import Variable
 
@@ -29,7 +31,7 @@ use_cuda = config.use_gpu and torch.cuda.is_available()
 
 def get_input_from_batch_wrapper(batch, use_cuda):
     a = get_input_from_batch(batch, use_cuda)
-    dict(
+    return dict(
         enc_batch=a[0],
         enc_padding_mask=a[1],
         enc_lens=a[2],
@@ -257,7 +259,7 @@ class BayesianDropout:
                    context,
                    coverage) in enumerate(conditioning_summary.iterator()):
 
-            for experiment in range(num_experiments):
+            for experiment in trange(num_experiments):
 
                 # TODO Is this what it supposed to be?
                 latest_tokens = [token for _ in range(config.beam_size)]
@@ -285,14 +287,18 @@ class BayesianDropout:
                     c_t_1=c_t_1,
                     extra_zeros=input_['extra_zeros'],
                     enc_batch_extend_vocab=input_['enc_batch_extend_vocab'],
-                    coverage_t_1=input_['coverage_t_1'],
-                    steps=step)
+                    coverage=None,
+                    step=step)
 
                 final_dist, s_t, c_t, attn_dist, p_gen, coverage_t = output
                 # log_probs = torch.log(final_dist)
                 result[step].append(final_dist)
 
-        return result
+        stacked_result = defaultdict(int)
+        for k, distributions in result:
+            stacked_result[k] = torch.stack(distributions, 0)
+
+        return stacked_result
 
     def batches(self):
         batch = self.batcher.next_batch()
@@ -300,7 +306,10 @@ class BayesianDropout:
             yield batch
             batch = self.batcher.next_batch()
 
+    @torch.no_grad()
     def run_experiments(self, num_experiments):
+        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
         final_results = []
         for i, batch in enumerate(self.batches()):
             conditioning_summary = self.beam_search(batch)
@@ -317,13 +326,17 @@ def parse_arguments():
     parser.add_argument('-n', '--num_experiments', required=False, type=str,
                         default=100)
 
+    parser.add_argument('-d', '--dont_use_gpu', action='store_true')
+
     args = parser.parse_args()
 
     print('Used arguments: ', args)
+
     return args
 
 
 def main():
+    global use_cuda
     args = parse_arguments()
 
     model_file_path = args.model

@@ -10,8 +10,8 @@ from threading import Thread
 import numpy as np
 import tensorflow as tf
 
-import config
-import data
+from . import config
+from . import data
 
 import random
 random.seed(1234)
@@ -209,7 +209,6 @@ class Batcher(object):
     while True:
       try:
         (article, abstract) = input_gen.__next__() # read the next example from file. article and abstract are both strings.
-        print(abstract)
       except StopIteration: # if there are no more examples:
         tf.logging.info("The example generator for this example queue filling thread has exhausted data.")
         if self._single_pass:
