@@ -6,6 +6,12 @@ import struct
 import csv
 from tensorflow.core.example import example_pb2
 
+from data_util import config
+import torch
+import numpy as np
+import sys
+from torchnlp.word_to_vector import GloVe
+
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
 SENTENCE_START = '<s>'
 SENTENCE_END = '</s>'
@@ -21,14 +27,23 @@ STOP_DECODING = '[STOP]' # This has a vocab id, which is used at the end of untr
 class Vocab(object):
 
   def __init__(self, vocab_file, max_size):
-    self._word_to_id = {}
-    self._id_to_word = {}
+    self._word_to_id = {} # Word to Index
+    self._id_to_word = {} # Index to Word
     self._count = 0 # keeps track of total number of words in the Vocab
+
+    # Creating GloVe vectors
+    glove_dict = GloVe(name='6B')
+    glove_embedding_matrix = np.zeros((max_size, config.emb_dim))
 
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
     for w in [UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
       self._word_to_id[w] = self._count
       self._id_to_word[self._count] = w
+
+      # If token in glove dictionary
+      glove_embedding = glove_dict[w]
+      glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
+        
       self._count += 1
 
     # Read the vocab file and add words up to max_size
@@ -38,17 +53,29 @@ class Vocab(object):
         if len(pieces) != 2:
           print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
           continue
-        w = pieces[0] # pieces[0].decode('utf-8')
+        w = pieces[0]#.decode('utf-8')
+        # if len(w) == 1:
+        #   continue
         if w in [SENTENCE_START, SENTENCE_END, UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
           raise Exception('<s>, </s>, [UNK], [PAD], [START] and [STOP] shouldn\'t be in the vocab file, but %s is' % w)
         if w in self._word_to_id:
           raise Exception('Duplicated word in vocabulary file: %s' % w)
         self._word_to_id[w] = self._count
         self._id_to_word[self._count] = w
+
+        # If token in glove dictionary
+        glove_embedding = glove_dict[w.decode('utf-8')]
+        glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
+
         self._count += 1
         if max_size != 0 and self._count >= max_size:
           print("max_size of vocab was specified as %i; we now have %i words. Stopping reading." % (max_size, self._count))
           break
+
+    # Creating a GloVe embedding matrix
+    self.glove_embedding_matrix = torch.nn.Embedding(max_size, config.emb_dim)
+    self.glove_embedding_matrix.weight.data.copy_(torch.from_numpy(glove_embedding_matrix))
+    self.glove_embedding_matrix.weight.requires_grad = True
 
     print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
