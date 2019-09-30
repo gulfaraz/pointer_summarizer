@@ -1,5 +1,9 @@
 from __future__ import unicode_literals, print_function, division
 
+import sys
+sys.path.append("..")
+import logging
+
 import os
 import time
 import argparse
@@ -18,6 +22,10 @@ from data_util.utils import calc_running_avg_loss
 from train_util import get_input_from_batch, get_output_from_batch
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
+train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
+if not os.path.exists(train_dir):
+    os.mkdir(train_dir)
+logging.basicConfig(filename= os.path.join(train_dir, "learning_curve.log"),level=logging.DEBUG)
 
 class Train(object):
     def __init__(self):
@@ -25,16 +33,14 @@ class Train(object):
         self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
                                batch_size=config.batch_size, single_pass=False)
         time.sleep(15)
-
-        train_dir = os.path.join(config.log_root, 'train_%d' % (int(time.time())))
-        if not os.path.exists(train_dir):
-            os.mkdir(train_dir)
-
+        
         self.model_dir = os.path.join(train_dir, 'model')
+        
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
 
         self.summary_writer = tf.summary.FileWriter(train_dir)
+        
 
     def save_model(self, running_avg_loss, iter):
         state = {
@@ -121,21 +127,24 @@ class Train(object):
         iter, running_avg_loss = self.setup_train(model_file_path)
         start = time.time()
         while iter < n_iters:
-            print("Iteration : ", iter)
+            # print("iteration", iter)
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
 
             running_avg_loss = calc_running_avg_loss(loss, running_avg_loss, self.summary_writer, iter)
             iter += 1
 
-            if iter % 100 == 0:
+            if iter % 1000 == 0:
                 self.summary_writer.flush()
-            print_interval = 1
+
+            print_interval = 1000
             if iter % print_interval == 0:
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
                                                                            time.time() - start, loss))
+                logging.info('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
+                                                                           time.time() - start, loss))
                 start = time.time()
-            if iter % 10 == 0:
+            if iter % 10000 == 0:
                 self.save_model(running_avg_loss, iter)
 
 if __name__ == '__main__':

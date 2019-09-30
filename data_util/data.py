@@ -38,7 +38,7 @@ class Vocab(object):
         if len(pieces) != 2:
           print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
           continue
-        w = pieces[0] # pieces[0].decode('utf-8')
+        w = pieces[0]
         if w in [SENTENCE_START, SENTENCE_END, UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
           raise Exception('<s>, </s>, [UNK], [PAD], [START] and [STOP] shouldn\'t be in the vocab file, but %s is' % w)
         if w in self._word_to_id:
@@ -144,14 +144,14 @@ def outputids2words(id_list, vocab, article_oovs):
 
 
 def abstract2sents(abstract):
-  s_start = bytes('<s>', encoding='utf-8')
-  s_end = bytes('</s>', encoding='utf-8')
+  # s_start = bytes('<s>', encoding='utf-8')
+  # s_end = bytes('</s>', encoding='utf-8')
   cur = 0
   sents = []
   while True:
     try:
-      start_p = abstract.index(s_start, cur)
-      end_p = abstract.index(s_end, start_p + 1)
+      start_p = abstract.index(SENTENCE_START.encode(), cur)
+      end_p = abstract.index(SENTENCE_END.encode(), start_p + 1)
       cur = end_p + len(SENTENCE_END)
       sents.append(abstract[start_p+len(SENTENCE_START):end_p])
     except ValueError as e: # no more sentences

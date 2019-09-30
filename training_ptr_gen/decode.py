@@ -3,6 +3,7 @@
 from __future__ import unicode_literals, print_function, division
 
 import sys
+sys.path.append("..")
 
 # reload(sys)
 # sys.setdefaultencoding('utf8')
@@ -201,7 +202,7 @@ class BeamSearch(object):
         return beams_sorted[0]
 
 if __name__ == '__main__':
-    model_filename = "../data/log/train_1569076557/model/model_50_1569077257"#sys.argv[1]
+    model_filename = "../data/log/train_1569843594/model/model_20000_1569868800"
     beam_Search_processor = BeamSearch(model_filename)
     beam_Search_processor.decode()
 

@@ -73,13 +73,13 @@ def write_for_rouge(reference_sents, decoded_words, ex_index,
       fst_period_idx = len(decoded_words)
     sent = decoded_words[:fst_period_idx + 1]
     decoded_words = decoded_words[fst_period_idx + 1:]
+    sent = [word.decode() if type(word) is not str else word for word in sent]
     decoded_sents.append(' '.join(sent))
 
   # pyrouge calls a perl script that puts the data into HTML files.
   # Therefore we need to make our output HTML safe.
   decoded_sents = [make_html_safe(w) for w in decoded_sents]
   reference_sents = [make_html_safe(w) for w in reference_sents]
-
   ref_file = os.path.join(_rouge_ref_dir, "%06d_reference.txt" % ex_index)
   decoded_file = os.path.join(_rouge_dec_dir, "%06d_decoded.txt" % ex_index)
 
