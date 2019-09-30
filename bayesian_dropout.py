@@ -293,8 +293,11 @@ class BayesianDropout:
                 # log_probs = torch.log(final_dist)
                 result[step].append(final_dist)
 
+
+            import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
         stacked_result = defaultdict(int)
-        for k, distributions in result:
+        for k, distributions in result.items():
             stacked_result[k] = torch.stack(distributions, 0)
 
         return stacked_result
@@ -322,7 +325,7 @@ class BayesianDropout:
 def parse_arguments():
     parser = ArgumentParser()
     parser.add_argument('-m', '--model', required=True, type=str, default=None)
-    parser.add_argument('-n', '--num_experiments', required=False, type=str,
+    parser.add_argument('-n', '--num_experiments', required=False, type=int,
                         default=100)
 
     parser.add_argument('-d', '--dont_use_gpu', action='store_true')
