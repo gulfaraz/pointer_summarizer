@@ -47,7 +47,7 @@ class Vocab(object):
       # If token in glove dictionary
       # s = Sentence(str(w))
       # glove_dict.embed(s)
-      glove_embedding = glove_dict[w]
+      glove_embedding = glove_dict[w.decode('utf-8')]
       # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
       glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
         
