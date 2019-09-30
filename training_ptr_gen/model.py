@@ -1,11 +1,16 @@
 from __future__ import unicode_literals, print_function, division
 
+import sys
+sys.path.append('..')
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from data_util import config
 from numpy import random
+
+from allennlp.modules.elmo import Elmo, batch_to_ids
 
 use_cuda = config.use_gpu and torch.cuda.is_available()
 
@@ -39,12 +44,25 @@ def init_wt_normal(wt):
 def init_wt_unif(wt):
     wt.data.uniform_(-config.rand_unif_init_mag, config.rand_unif_init_mag)
 
-class Encoder(nn.Module):
-    def __init__(self):
-        super(Encoder, self).__init__()
-        self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
-        init_wt_normal(self.embedding.weight)
+def convert_input_to_string_sequence(input, vocab):
 
+    input_string_sequence = []
+
+    for sentence in input:
+            input_string_sequence.append([vocab._id_to_word[int(word_id.item())].decode('utf-8') for word_id in sentence])
+
+    return input_string_sequence
+
+# Creating an instance of the ELMo class
+elmo = Elmo(config.options_file, config.weight_file, 2, dropout = 0)
+
+class Encoder(nn.Module):
+    def __init__(self, vocab):
+        super(Encoder, self).__init__()
+        #self.embedding = nn.Embedding(config.vocab_size, config.emb_dim - config.elmo_dim)
+        #init_wt_normal(self.embedding.weight)
+
+        self.vocab = vocab
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
         init_lstm_wt(self.lstm)
 
@@ -52,7 +70,32 @@ class Encoder(nn.Module):
 
     #seq_lens should be in descending order
     def forward(self, input, seq_lens):
-        embedded = self.embedding(input)
+        # Input is a tensor of size Num_Sentence X Max_Sentence_Length (Each value is the index of the word in the embedding)
+        # Input = Tensor([[10, 20, 30, ...], [40, 50, 60, ....]])
+
+        # Obtaining a list of lists where each sublist is a tokenized sentence
+        input_string_sequence = convert_input_to_string_sequence(input, self.vocab)
+
+        # Obtaining the character ids for ELMo
+        character_ids = batch_to_ids(input_string_sequence)
+
+        # Obtaining the ELMo embeddings
+        elmo_embeddings = elmo(character_ids)
+        elmo_embeddings = elmo_embeddings['elmo_representations'][0]
+        elmo_embeddings = elmo_embeddings.cuda()
+        # print(elmo_embeddings.size())
+        # sys.exit()
+
+
+        # Obtaining the GloVe Embeddings
+        # print(self.vocab.glove_embedding_matrix(torch.LongTensor(input[0][0])))
+        # print(input)
+        self.vocab.glove_embedding_matrix = self.vocab.glove_embedding_matrix.cuda()
+        glove_embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size 
+        embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
+        # print(embedded)
+        # print(embedded.size())
+        #sys.exit()
 
         packed = pack_padded_sequence(embedded, seq_lens, batch_first=True)
         output, hidden = self.lstm(packed)
@@ -126,13 +169,14 @@ class Attention(nn.Module):
         return c_t, attn_dist, coverage
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, vocab):
         super(Decoder, self).__init__()
         self.attention_network = Attention()
         # decoder
-        self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
-        init_wt_normal(self.embedding.weight)
+        # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
+        # init_wt_normal(self.embedding.weight)
 
+        self.vocab = vocab
         self.x_context = nn.Linear(config.hidden_dim * 2 + config.emb_dim, config.emb_dim)
 
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
@@ -157,7 +201,24 @@ class Decoder(nn.Module):
                                                               enc_padding_mask, coverage)
             coverage = coverage_next
 
-        y_t_1_embd = self.embedding(y_t_1)
+        # y_t_1_embd = embedding(y_t_1)
+        input_string_sequence = [[self.vocab._id_to_word[int(id.item())]].decode("utf-8") for id in y_t_1]
+        
+        # Obtaining the character ids for ELMo
+        character_ids = batch_to_ids(input_string_sequence)
+        # Obtaining the ELMo embeddings
+        elmo_embeddings = elmo(character_ids)
+        y_t_1_elmo_embd = elmo_embeddings['elmo_representations'][0]
+        y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
+        y_t_1_elmo_embd = y_t_1_elmo_embd.cuda()
+        #print(y_t_1_elmo_embd.size())
+        
+        y_t_1_glove_embd = self.vocab.glove_embedding_matrix(y_t_1)
+        y_t_1_glove_embd = y_t_1_glove_embd.cuda()
+        #print(y_t_1_glove_embd.size())
+        y_t_1_embd = torch.cat((y_t_1_glove_embd, y_t_1_elmo_embd), dim = 1)
+        y_t_1_embd = y_t_1_embd.cuda()
+
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
         lstm_out, s_t = self.lstm(x.unsqueeze(1), s_t_1)
 
@@ -198,13 +259,13 @@ class Decoder(nn.Module):
         return final_dist, s_t, c_t, attn_dist, p_gen, coverage
 
 class Model(object):
-    def __init__(self, model_file_path=None, is_eval=False):
-        encoder = Encoder()
-        decoder = Decoder()
+    def __init__(self, vocab, model_file_path=None, is_eval=False):
+        encoder = Encoder(vocab)
+        decoder = Decoder(vocab)
         reduce_state = ReduceState()
 
         # shared the embedding between encoder and decoder
-        decoder.embedding.weight = encoder.embedding.weight
+        # decoder.embedding.weight = encoder.embedding.weight
         if is_eval:
             encoder = encoder.eval()
             decoder = decoder.eval()

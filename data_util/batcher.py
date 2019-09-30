@@ -2,6 +2,8 @@
 
 # from multiprocessing import Queue
 # import Queue
+import sys
+sys.path.append("..")
 import queue as Queue
 import time
 from random import shuffle
@@ -10,8 +12,8 @@ from threading import Thread
 import numpy as np
 import tensorflow as tf
 
-import config
-import data
+from data_util import config
+from data_util import data
 
 import random
 random.seed(1234)
@@ -29,7 +31,7 @@ class Example(object):
     if len(article_words) > config.max_enc_steps:
       article_words = article_words[:config.max_enc_steps]
     self.enc_len = len(article_words) # store the length after truncation but before padding
-    self.enc_input = [vocab.word2id(w '''replace with w.decode('utf-8')''') for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
+    self.enc_input = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Process the abstract
     abstract = ' '.join(str(abstract_sentences)) # string
