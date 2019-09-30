@@ -6,20 +6,23 @@ import struct
 import csv
 from tensorflow.core.example import example_pb2
 
+# from flair.embeddings import WordEmbeddings
+# from flair.data import Sentence
 from data_util import config
 import torch
 import numpy as np
 import sys
+import string
 from torchnlp.word_to_vector import GloVe
 
 # <s> and </s> are used in the data files to segment the abstracts into sentences. They don't receive vocab ids.
 SENTENCE_START = '<s>'
 SENTENCE_END = '</s>'
 
-PAD_TOKEN = '[PAD]' # This has a vocab id, which is used to pad the encoder input, decoder input and target sequence
-UNKNOWN_TOKEN = '[UNK]' # This has a vocab id, which is used to represent out-of-vocabulary words
-START_DECODING = '[START]' # This has a vocab id, which is used at the start of every decoder input sequence
-STOP_DECODING = '[STOP]' # This has a vocab id, which is used at the end of untruncated target sequences
+PAD_TOKEN = b'[PAD]' # This has a vocab id, which is used to pad the encoder input, decoder input and target sequence
+UNKNOWN_TOKEN = b'[UNK]' # This has a vocab id, which is used to represent out-of-vocabulary words
+START_DECODING = b'[START]' # This has a vocab id, which is used at the start of every decoder input sequence
+STOP_DECODING = b'[STOP]' # This has a vocab id, which is used at the end of untruncated target sequences
 
 # Note: none of <s>, </s>, [PAD], [UNK], [START], [STOP] should appear in the vocab file.
 
@@ -33,7 +36,8 @@ class Vocab(object):
 
     # Creating GloVe vectors
     glove_dict = GloVe(name='6B')
-    glove_embedding_matrix = np.zeros((max_size, config.emb_dim))
+    #glove_dict = WordEmbeddings('glove')
+    glove_embedding_matrix = np.zeros((max_size, config.emb_dim - config.elmo_dim))
 
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
     for w in [UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
@@ -41,7 +45,10 @@ class Vocab(object):
       self._id_to_word[self._count] = w
 
       # If token in glove dictionary
-      glove_embedding = glove_dict[w]
+      # s = Sentence(str(w))
+      # glove_dict.embed(s)
+      glove_embedding = glove_dict[w.decode('utf-8')]
+      # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
       glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
         
       self._count += 1
@@ -64,6 +71,7 @@ class Vocab(object):
         # If token in glove dictionary
         glove_embedding = glove_dict[w.decode('utf-8')]
         glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
+        # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
 
         self._count += 1
         if max_size != 0 and self._count >= max_size:
@@ -71,7 +79,7 @@ class Vocab(object):
           break
 
     # Creating a GloVe embedding matrix
-    self.glove_embedding_matrix = torch.nn.Embedding(max_size, config.emb_dim)
+    self.glove_embedding_matrix = torch.nn.Embedding(max_size, config.emb_dim - config.elmo_dim)
     self.glove_embedding_matrix.weight.data.copy_(torch.from_numpy(glove_embedding_matrix))
     self.glove_embedding_matrix.weight.requires_grad = True
 
@@ -156,7 +164,7 @@ def outputids2words(id_list, vocab, article_oovs):
   words = []
   for i in id_list:
     try:
-      w = vocab.id2word(i) # might be [UNK]
+      w = vocab.id2word(i)  # might be [UNK]
     except ValueError as e: # w is OOV
       assert article_oovs is not None, "Error: model produced a word ID that isn't in the vocabulary. This should not happen in baseline (no pointer-generator) mode"
       article_oov_idx = i - vocab.size()

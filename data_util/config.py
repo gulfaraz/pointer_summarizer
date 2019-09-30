@@ -11,9 +11,9 @@ log_root = os.path.join(root_dir, "data", "log")
 
 # Hyperparameters
 hidden_dim= 256
-# glove_dim = 100
-# elmo_dim = 1024
-emb_dim = 300 #glove_dim + elmo_dim
+glove_dim = 300
+elmo_dim = 1024
+emb_dim = 1324 # glove_dim + elmo_dim
 batch_size= 8
 max_enc_steps=400
 max_dec_steps=100
