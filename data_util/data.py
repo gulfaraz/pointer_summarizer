@@ -53,9 +53,9 @@ class Vocab(object):
         if len(pieces) != 2:
           print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
           continue
-        w = pieces[0].decode('utf-8')
-        if len(w) == 1:
-          continue
+        w = pieces[0]#.decode('utf-8')
+        # if len(w) == 1:
+        #   continue
         if w in [SENTENCE_START, SENTENCE_END, UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
           raise Exception('<s>, </s>, [UNK], [PAD], [START] and [STOP] shouldn\'t be in the vocab file, but %s is' % w)
         if w in self._word_to_id:
@@ -64,7 +64,7 @@ class Vocab(object):
         self._id_to_word[self._count] = w
 
         # If token in glove dictionary
-        glove_embedding = glove_dict[w]
+        glove_embedding = glove_dict[w.decode('utf-8')]
         glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
 
         self._count += 1
