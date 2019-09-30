@@ -4,6 +4,7 @@
 # import Queue
 import sys
 sys.path.append("..")
+
 import queue as Queue
 import time
 from random import shuffle
@@ -34,9 +35,14 @@ class Example(object):
     self.enc_input = [vocab.word2id(w) for w in article_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Process the abstract
-    abstract = ' '.join(str(abstract_sentences)) # string
+
+    abstract = ' '.join(str(sent) for sent in abstract_sentences) # string
     abstract_words = abstract.split() # list of strings
-    abs_ids = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
+    abstract_words = [word.encode() for word in abstract_words]
+    abs_ids = [vocab.word2id(w) for w in abstract_words] # list of word
+    # abstract = ' '.join(str(abstract_sentences)) # string
+    # abstract_words = abstract.split() # list of strings
+    # abs_ids = [vocab.word2id(w) for w in abstract_words] # list of word ids; OOVs are represented by the id for UNK token
 
     # Get the decoder input sequence and target sequence
     self.dec_input, self.target = self.get_dec_inp_targ_seqs(abs_ids, config.max_dec_steps, start_decoding, stop_decoding)

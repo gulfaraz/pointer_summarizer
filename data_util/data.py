@@ -50,7 +50,7 @@ class Vocab(object):
       glove_embedding = glove_dict[w.decode('utf-8')]
       # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
       glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
-        
+
       self._count += 1
 
     # Read the vocab file and add words up to max_size
@@ -61,8 +61,7 @@ class Vocab(object):
           print('Warning: incorrectly formatted line in vocabulary file: %s\n' % line)
           continue
         w = pieces[0]
-        # if len(w) == 1:
-        #   continue
+
         if w in [SENTENCE_START, SENTENCE_END, UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
           raise Exception('<s>, </s>, [UNK], [PAD], [START] and [STOP] shouldn\'t be in the vocab file, but %s is' % w)
         if w in self._word_to_id:
@@ -181,14 +180,14 @@ def outputids2words(id_list, vocab, article_oovs):
 
 
 def abstract2sents(abstract):
-  s_start = bytes('<s>', encoding='utf-8')
-  s_end = bytes('</s>', encoding='utf-8')
+  # s_start = bytes('<s>', encoding='utf-8')
+  # s_end = bytes('</s>', encoding='utf-8')
   cur = 0
   sents = []
   while True:
     try:
-      start_p = abstract.index(s_start, cur)
-      end_p = abstract.index(s_end, start_p + 1)
+      start_p = abstract.index(SENTENCE_START.encode(), cur)
+      end_p = abstract.index(SENTENCE_END.encode(), start_p + 1)
       cur = end_p + len(SENTENCE_END)
       sents.append(abstract[start_p+len(SENTENCE_START):end_p])
     except ValueError as e: # no more sentences

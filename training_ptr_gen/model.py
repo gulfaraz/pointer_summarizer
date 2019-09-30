@@ -1,7 +1,7 @@
 from __future__ import unicode_literals, print_function, division
 
 import sys
-sys.path.append('..')
+sys.path.append("..")
 
 import torch
 import torch.nn as nn
@@ -91,7 +91,7 @@ class Encoder(nn.Module):
         # print(self.vocab.glove_embedding_matrix(torch.LongTensor(input[0][0])))
         # print(input)
         self.vocab.glove_embedding_matrix = self.vocab.glove_embedding_matrix.cuda()
-        glove_embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size 
+        glove_embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
         embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
         # print(embedded)
         # print(embedded.size())
@@ -203,7 +203,7 @@ class Decoder(nn.Module):
 
         # y_t_1_embd = embedding(y_t_1)
         input_string_sequence = [[self.vocab._id_to_word[int(id.item())]].decode("utf-8") for id in y_t_1]
-        
+
         # Obtaining the character ids for ELMo
         character_ids = batch_to_ids(input_string_sequence)
         # Obtaining the ELMo embeddings
@@ -212,7 +212,7 @@ class Decoder(nn.Module):
         y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
         y_t_1_elmo_embd = y_t_1_elmo_embd.cuda()
         #print(y_t_1_elmo_embd.size())
-        
+
         y_t_1_glove_embd = self.vocab.glove_embedding_matrix(y_t_1)
         y_t_1_glove_embd = y_t_1_glove_embd.cuda()
         #print(y_t_1_glove_embd.size())

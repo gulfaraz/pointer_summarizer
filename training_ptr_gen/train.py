@@ -1,5 +1,9 @@
 from __future__ import unicode_literals, print_function, division
 
+import sys
+sys.path.append("..")
+import logging
+
 import os
 import time
 import argparse
@@ -34,10 +38,12 @@ class Train(object):
         time.sleep(15)
 
         self.model_dir = os.path.join(train_dir, 'model')
+
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
 
         self.summary_writer = tf.summary.FileWriter(train_dir)
+
 
     def save_model(self, running_avg_loss, iter):
         state = {
@@ -101,7 +107,7 @@ class Train(object):
                 step_coverage_loss = torch.sum(torch.min(attn_dist, coverage), 1)
                 step_loss = step_loss + config.cov_loss_wt * step_coverage_loss
                 coverage = next_coverage
-                
+
             step_mask = dec_padding_mask[:, di]
             step_loss = step_loss * step_mask
             step_losses.append(step_loss)
@@ -124,7 +130,7 @@ class Train(object):
         iter, running_avg_loss = self.setup_train(model_file_path)
         start = time.time()
         while iter < n_iters:
-            print("Iteration : ", iter)
+            # print("iteration", iter)
             batch = self.batcher.next_batch()
             loss = self.train_one_batch(batch)
 
@@ -133,6 +139,7 @@ class Train(object):
 
             if iter % 10000 == 0:
                 self.summary_writer.flush()
+
             print_interval = 1000
             if iter % print_interval == 0:
                 print('steps %d, seconds for %d batch: %.2f , loss: %f' % (iter, print_interval,
@@ -146,11 +153,11 @@ class Train(object):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train script")
     parser.add_argument("-m",
-                        dest="model_file_path", 
+                        dest="model_file_path",
                         required=False,
                         default=None,
                         help="Model file for retraining (default: None).")
     args = parser.parse_args()
-    
+
     train_processor = Train()
     train_processor.trainIters(config.max_iterations, args.model_file_path)
