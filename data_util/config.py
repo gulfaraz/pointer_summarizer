@@ -1,17 +1,18 @@
 import os
 
+data_dir = "../../../pointer_summarizer"
 root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))#os.path.("~")
 
 #train_data_path = os.path.join(root_dir, "data/finished_files/train.bin")
-train_data_path = os.path.join(root_dir, "data/finished_files/chunked/train_*")
-eval_data_path = os.path.join(root_dir, "data/finished_files/val.bin")
+train_data_path = os.path.join(data_dir, "data/finished_files/chunked/train_*")
+eval_data_path = os.path.join(data_dir, "data/finished_files/val.bin")
 decode_data_path = os.path.join(root_dir, "data/finished_files/test.bin")
-vocab_path = os.path.join(root_dir, "data/finished_files/vocab")
+vocab_path = os.path.join(data_dir, "data/finished_files/vocab")
 log_root = os.path.join(root_dir, "data/log")
 
 # Hyperparameters
 hidden_dim= 256
-emb_dim= 128
+emb_dim= 300
 batch_size= 8
 max_enc_steps=400
 max_dec_steps=100
@@ -30,7 +31,7 @@ is_coverage = False
 cov_loss_wt = 1.0
 
 eps = 1e-12
-max_iterations = 10000 #steps (not epochs)
+max_iterations = 500000 #steps (not epochs)
 
 use_gpu=True
 

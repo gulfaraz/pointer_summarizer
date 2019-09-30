@@ -6,7 +6,8 @@ import sys
 
 # reload(sys)
 # sys.setdefaultencoding('utf8')
-
+import sys
+sys.path.append('..')
 import os
 import time
 
@@ -62,7 +63,9 @@ class BeamSearch(object):
                                batch_size=config.beam_size, single_pass=True)
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True)
+        self.model = Model(vocab=self.vocab,
+                            model_file_path=model_file_path,
+                            is_eval=True)
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
@@ -201,7 +204,7 @@ class BeamSearch(object):
         return beams_sorted[0]
 
 if __name__ == '__main__':
-    model_filename = "../data/log/train_1569076557/model/model_50_1569077257"#sys.argv[1]
+    model_filename = "../data/log/train_1569413348/model/model_300000_1569833011"#sys.argv[1]
     beam_Search_processor = BeamSearch(model_filename)
     beam_Search_processor.decode()
 
