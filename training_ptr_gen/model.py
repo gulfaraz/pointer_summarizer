@@ -202,7 +202,7 @@ class Decoder(nn.Module):
             coverage = coverage_next
 
         # y_t_1_embd = embedding(y_t_1)
-        input_string_sequence = [[self.vocab._id_to_word[int(id.item())]].decode("utf-8") for id in y_t_1]
+        input_string_sequence = [[self.vocab._id_to_word[int(id.item())].decode("utf-8")] for id in y_t_1]
 
         # Obtaining the character ids for ELMo
         character_ids = batch_to_ids(input_string_sequence)
