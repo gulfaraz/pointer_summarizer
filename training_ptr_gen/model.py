@@ -54,17 +54,9 @@ def convert_input_to_string_sequence(input, vocab):
     return input_string_sequence
 
 
-elmo_global = Elmo(
-                    options_file=config.options_file,
-                    weight_file=config.weight_file,
-                    num_output_representations=2,
-                    dropout=0.5,
-                    requires_grad=False,
-                )
-
 
 class Encoder(nn.Module):
-    def __init__(self, vocab):
+    def __init__(self, vocab, elmo=None, finetune_glove=False):
         super(Encoder, self).__init__()
         #self.embedding = nn.Embedding(config.vocab_size, config.emb_dim - config.elmo_dim)
         #init_wt_normal(self.embedding.weight)
@@ -85,9 +77,14 @@ class Encoder(nn.Module):
 
         # Requires grad is true for glove
         self.glove = self.vocab.glove_embedding
+        self.glove.weight.requires_grad = finetune_glove
 
-        # Creating an instance of the ELMo class
-        self.elmo = elmo_global
+        if elmo is not None:
+            # Creating an instance of the ELMo class
+            self.using_elmo = True
+            self.elmo = elmo
+        else:
+            self.using_elmo = False
 
     #seq_lens should be in descending order
     def forward(self, input, seq_lens):
@@ -101,9 +98,10 @@ class Encoder(nn.Module):
         character_ids = batch_to_ids(input_string_sequence)
         character_ids = character_ids.cuda()
 
-        # Obtaining the ELMo embeddings
-        elmo_embeddings = self.elmo(character_ids)
-        elmo_embeddings = elmo_embeddings['elmo_representations'][0]
+        if using_elmo:
+            # Obtaining the ELMo embeddings
+            elmo_embeddings = self.elmo(character_ids)
+            elmo_embeddings = elmo_embeddings['elmo_representations'][0]
 
         # print(elmo_embeddings.size())
         # sys.exit()
@@ -113,7 +111,11 @@ class Encoder(nn.Module):
         # print(input)
 
         glove_embedded = self.glove(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
-        embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
+        if using_elmo:
+            embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
+        else:
+            embedded = glove_embedded
+
         # print(embedded)
         # print(embedded.size())
         #sys.exit()
@@ -190,7 +192,7 @@ class Attention(nn.Module):
         return c_t, attn_dist, coverage
 
 class Decoder(nn.Module):
-    def __init__(self, vocab):
+    def __init__(self, vocab, elmo=None, finetune_glove=False):
         super(Decoder, self).__init__()
         self.attention_network = Attention()
         # decoder
@@ -199,7 +201,13 @@ class Decoder(nn.Module):
 
         self.vocab = vocab
         self.glove = self.vocab.glove_embedding
-        self.elmo = elmo_global
+        self.glove.weight.requires_grad = finetune_glove
+
+        if elmo is not None:
+            self.using_elmo=True
+            self.elmo = elmo
+        else:
+            self.using_elmo = False
 
         self.x_context = nn.Linear(config.hidden_dim * 2 + config.emb_dim, config.emb_dim)
 
@@ -241,16 +249,21 @@ class Decoder(nn.Module):
 
         character_ids = batch_to_ids(input_string_sequence)
         character_ids = character_ids.cuda()
-        # Obtaining the ELMo embeddings
-        elmo_embeddings = self.elmo(character_ids)
-        y_t_1_elmo_embd = elmo_embeddings['elmo_representations'][0]
-        y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
-        #print(y_t_1_elmo_embd.size())
+
+        if self.using_elmo:
+            # Obtaining the ELMo embeddings
+            elmo_embeddings = self.elmo(character_ids)
+            y_t_1_elmo_embd = elmo_embeddings['elmo_representations'][0]
+            y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
+            #print(y_t_1_elmo_embd.size())
 
         y_t_1_glove_embd = self.glove(y_t_1)
         #print(y_t_1_glove_embd.size())
 
-        y_t_1_embd = torch.cat((y_t_1_glove_embd, y_t_1_elmo_embd), dim = 1)
+        if self.using_elmo:
+            y_t_1_embd = torch.cat((y_t_1_glove_embd, y_t_1_elmo_embd), dim = 1)
+        else:
+            y_t_1_embd = y_t_1_glove_embd
 
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
         lstm_out, s_t = self.lstm(x.unsqueeze(1), s_t_1)
@@ -258,6 +271,7 @@ class Decoder(nn.Module):
         h_decoder, c_decoder = s_t
         s_t_hat = torch.cat((h_decoder.view(-1, config.hidden_dim),
                              c_decoder.view(-1, config.hidden_dim)), 1)  # B x 2*hidden_dim
+
         c_t, attn_dist, coverage_next = self.attention_network(s_t_hat, encoder_outputs, encoder_feature,
                                                           enc_padding_mask, coverage)
 
@@ -292,9 +306,21 @@ class Decoder(nn.Module):
         return final_dist, s_t, c_t, attn_dist, p_gen, coverage
 
 class Model(object):
-    def __init__(self, vocab, model_file_path=None, is_eval=False):
-        encoder = Encoder(vocab)
-        decoder = Decoder(vocab)
+    def __init__(self, vocab, model_file_path=None, is_eval=False, use_elmo=False, finetune_glove=False):
+
+        if use_elmo:
+            elmo = Elmo(
+                            options_file=config.options_file,
+                            weight_file=config.weight_file,
+                            num_output_representations=2,
+                            dropout=0.5,
+                            requires_grad=False,
+                        )
+        else:
+            elmo = None
+
+        encoder = Encoder(vocab, elmo=elmo, finetune_glove=finetune_glove)
+        decoder = Decoder(vocab, elmo=elmo, finetune_glove=finetune_glove)
         reduce_state = ReduceState()
 
         # shared the embedding between encoder and decoder

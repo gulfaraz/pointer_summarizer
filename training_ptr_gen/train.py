@@ -31,10 +31,13 @@ if not os.path.exists(train_dir):
 logging.basicConfig(filename= os.path.join(train_dir, "learning_curve.log"),level=logging.DEBUG)
 
 class Train(object):
-    def __init__(self):
+    def __init__(self, use_elmo=False, finetune_glove=False):
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.train_data_path, self.vocab, mode='train',
                                batch_size=config.batch_size, single_pass=False)
+        self.use_elmo = use_elmo
+        self.finetune_glove = finetune_glove
+
         time.sleep(15)
 
         self.model_dir = os.path.join(train_dir, 'model')
@@ -58,7 +61,12 @@ class Train(object):
         torch.save(state, model_save_path)
 
     def setup_train(self, model_file_path=None):
-        self.model = Model(vocab = self.vocab, model_file_path = model_file_path)
+        self.model = Model(vocab=self.vocab,
+                           model_file_path=model_file_path,
+                           is_eval=False,
+                           use_elmo=self.use_elmo,
+                           finetune_glove=self.finetune_glove,
+                           )
 
         params = list(self.model.encoder.parameters()) + list(self.model.decoder.parameters()) + \
                  list(self.model.reduce_state.parameters())
@@ -157,7 +165,12 @@ if __name__ == '__main__':
                         required=False,
                         default=None,
                         help="Model file for retraining (default: None).")
+    parser.add_argument("-e", "--use_elmo", required=False, action='store_true')
+    parser.add_argument("-g", "--finetune_glove", required=False, action='store_true')
     args = parser.parse_args()
 
-    train_processor = Train()
+    import pdb; pdb.set_trace()  # XXX BREAKPOINT
+
+    train_processor = Train(args.use_elmo, args.finetune_glove)
     train_processor.trainIters(config.max_iterations, args.model_file_path)
+
