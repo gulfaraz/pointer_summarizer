@@ -37,7 +37,7 @@ class Vocab(object):
     # Creating GloVe vectors
     glove_dict = GloVe(name='6B')
     #glove_dict = WordEmbeddings('glove')
-    glove_embedding_matrix = np.zeros((max_size, config.emb_dim - config.elmo_dim))
+    glove_embedding_matrix = np.zeros((max_size, config.glove_dim))
 
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
     for w in [UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
@@ -48,7 +48,6 @@ class Vocab(object):
       # s = Sentence(str(w))
       # glove_dict.embed(s)
       glove_embedding = glove_dict[w.decode('utf-8')]
-      # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
       glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
 
       self._count += 1
@@ -74,7 +73,6 @@ class Vocab(object):
         # glove_dict.embed(s)
         glove_embedding = glove_dict[w.decode('utf-8')]
         glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
-        # glove_embedding_matrix[self._word_to_id[w], :] = s[0].embedding.cpu().numpy()
 
         self._count += 1
         if max_size != 0 and self._count >= max_size:
@@ -82,9 +80,7 @@ class Vocab(object):
           break
 
     # Creating a GloVe embedding matrix
-    self.glove_embedding_matrix = torch.nn.Embedding(max_size, config.emb_dim - config.elmo_dim)
-    self.glove_embedding_matrix.weight.data.copy_(torch.from_numpy(glove_embedding_matrix))
-    self.glove_embedding_matrix.weight.requires_grad = True
+    self.globe_embedding_matrix = torch.nn.Embedding.from_pretrained(torch.from_numpy(glove_embedding_matrix), freeze=False)
 
     print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
