@@ -53,8 +53,15 @@ def convert_input_to_string_sequence(input, vocab):
 
     return input_string_sequence
 
-# Creating an instance of the ELMo class
-elmo = Elmo(config.options_file, config.weight_file, 2, dropout = 0)
+
+elmo_global = Elmo(
+                    options_file=config.options_file,
+                    weight_file=config.weight_file,
+                    num_output_representations=2,
+                    dropout=0.5,
+                    requires_grad=False,
+                )
+
 
 class Encoder(nn.Module):
     def __init__(self, vocab):
@@ -68,6 +75,12 @@ class Encoder(nn.Module):
 
         self.W_h = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2, bias=False)
 
+        # Requires grad is true for glove
+        self.glove = self.vocab.glove_embedding
+
+        # Creating an instance of the ELMo class
+        self.elmo = elmo_global
+
     #seq_lens should be in descending order
     def forward(self, input, seq_lens):
         # Input is a tensor of size Num_Sentence X Max_Sentence_Length (Each value is the index of the word in the embedding)
@@ -78,20 +91,20 @@ class Encoder(nn.Module):
 
         # Obtaining the character ids for ELMo
         character_ids = batch_to_ids(input_string_sequence)
+        character_ids = character_ids.cuda()
 
         # Obtaining the ELMo embeddings
-        elmo_embeddings = elmo(character_ids)
+        elmo_embeddings = self.elmo(character_ids)
         elmo_embeddings = elmo_embeddings['elmo_representations'][0]
-        elmo_embeddings = elmo_embeddings.cuda()
+
         # print(elmo_embeddings.size())
         # sys.exit()
-
 
         # Obtaining the GloVe Embeddings
         # print(self.vocab.glove_embedding_matrix(torch.LongTensor(input[0][0])))
         # print(input)
-        self.vocab.glove_embedding_matrix = self.vocab.glove_embedding_matrix.cuda()
-        glove_embedded = self.vocab.glove_embedding_matrix(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
+
+        glove_embedded = self.glove(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
         embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
         # print(embedded)
         # print(embedded.size())
@@ -177,6 +190,9 @@ class Decoder(nn.Module):
         # init_wt_normal(self.embedding.weight)
 
         self.vocab = vocab
+        self.glove = self.vocab.glove_embedding
+        self.elmo = elmo_global
+
         self.x_context = nn.Linear(config.hidden_dim * 2 + config.emb_dim, config.emb_dim)
 
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
@@ -201,23 +217,24 @@ class Decoder(nn.Module):
                                                               enc_padding_mask, coverage)
             coverage = coverage_next
 
+
         # y_t_1_embd = embedding(y_t_1)
         input_string_sequence = [[self.vocab._id_to_word[int(id.item())].decode("utf-8")] for id in y_t_1]
 
         # Obtaining the character ids for ELMo
+
         character_ids = batch_to_ids(input_string_sequence)
+        character_ids = character_ids.cuda()
         # Obtaining the ELMo embeddings
-        elmo_embeddings = elmo(character_ids)
+        elmo_embeddings = self.elmo(character_ids)
         y_t_1_elmo_embd = elmo_embeddings['elmo_representations'][0]
         y_t_1_elmo_embd = y_t_1_elmo_embd.view(y_t_1_elmo_embd.shape[0], -1)
-        y_t_1_elmo_embd = y_t_1_elmo_embd.cuda()
         #print(y_t_1_elmo_embd.size())
 
-        y_t_1_glove_embd = self.vocab.glove_embedding_matrix(y_t_1)
-        y_t_1_glove_embd = y_t_1_glove_embd.cuda()
+        y_t_1_glove_embd = self.glove(y_t_1)
         #print(y_t_1_glove_embd.size())
+
         y_t_1_embd = torch.cat((y_t_1_glove_embd, y_t_1_elmo_embd), dim = 1)
-        y_t_1_embd = y_t_1_embd.cuda()
 
         x = self.x_context(torch.cat((c_t_1, y_t_1_embd), 1))
         lstm_out, s_t = self.lstm(x.unsqueeze(1), s_t_1)

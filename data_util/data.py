@@ -10,6 +10,8 @@ from tensorflow.core.example import example_pb2
 # from flair.data import Sentence
 from data_util import config
 import torch
+from torch.nn import init
+
 import numpy as np
 import sys
 import string
@@ -23,6 +25,10 @@ PAD_TOKEN = b'[PAD]' # This has a vocab id, which is used to pad the encoder inp
 UNKNOWN_TOKEN = b'[UNK]' # This has a vocab id, which is used to represent out-of-vocabulary words
 START_DECODING = b'[START]' # This has a vocab id, which is used at the start of every decoder input sequence
 STOP_DECODING = b'[STOP]' # This has a vocab id, which is used at the end of untruncated target sequences
+SPECIAL_TOKENS = [PAD_TOKEN,
+                 UNKNOWN_TOKEN,
+                 START_DECODING,
+                 STOP_DECODING,]
 
 # Note: none of <s>, </s>, [PAD], [UNK], [START], [STOP] should appear in the vocab file.
 
@@ -34,21 +40,10 @@ class Vocab(object):
     self._id_to_word = {} # Index to Word
     self._count = 0 # keeps track of total number of words in the Vocab
 
-    # Creating GloVe vectors
-    glove_dict = GloVe(name='6B')
-    #glove_dict = WordEmbeddings('glove')
-    glove_embedding_matrix = np.zeros((max_size, config.glove_dim))
-
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
-    for w in [UNKNOWN_TOKEN, PAD_TOKEN, START_DECODING, STOP_DECODING]:
+    for w in SPECIAL_TOKENS:
       self._word_to_id[w] = self._count
       self._id_to_word[self._count] = w
-
-      # If token in glove dictionary
-      # s = Sentence(str(w))
-      # glove_dict.embed(s)
-      glove_embedding = glove_dict[w.decode('utf-8')]
-      glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
 
       self._count += 1
 
@@ -68,19 +63,29 @@ class Vocab(object):
         self._word_to_id[w] = self._count
         self._id_to_word[self._count] = w
 
-        # If token in glove dictionary
-        # s = Sentence(str(w))
-        # glove_dict.embed(s)
-        glove_embedding = glove_dict[w.decode('utf-8')]
-        glove_embedding_matrix[self._word_to_id[w], :] = glove_embedding.cpu().numpy()
-
         self._count += 1
         if max_size != 0 and self._count >= max_size:
           print("max_size of vocab was specified as %i; we now have %i words. Stopping reading." % (max_size, self._count))
           break
 
+    # Initializing GloVe
+
+    # Creating GloVe vectors
+    glove_dict = GloVe(name='6B')
+    #glove_dict = WordEmbeddings('glove')
+    glove_embedding_matrix = torch.zeros(max_size, config.glove_dim)
+
+
+    for word_id, word in self._id_to_word.items():
+      embedding = glove_dict[word.decode('utf-8')]
+      if word in SPECIAL_TOKENS:
+        init.normal_(embedding, std=config.trunc_norm_init_std)
+      glove_embedding_matrix[word_id, :] = embedding
+
     # Creating a GloVe embedding matrix
-    self.globe_embedding_matrix = torch.nn.Embedding.from_pretrained(torch.from_numpy(glove_embedding_matrix), freeze=False)
+    self.glove_embedding = torch.nn.Embedding.from_pretrained(
+        glove_embedding_matrix, freeze=False
+    )
 
     print("Finished constructing vocabulary of %i total words. Last word added: %s" % (self._count, self._id_to_word[self._count-1]))
 
