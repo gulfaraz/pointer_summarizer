@@ -70,7 +70,15 @@ class Encoder(nn.Module):
         #init_wt_normal(self.embedding.weight)
 
         self.vocab = vocab
-        self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(
+            config.emb_dim,
+            config.hidden_dim,
+            num_layers=1,
+            batch_first=True,
+            bidirectional=True,
+            dropout=0.10,
+        )
+
         init_lstm_wt(self.lstm)
 
         self.W_h = nn.Linear(config.hidden_dim * 2, config.hidden_dim * 2, bias=False)
@@ -195,7 +203,15 @@ class Decoder(nn.Module):
 
         self.x_context = nn.Linear(config.hidden_dim * 2 + config.emb_dim, config.emb_dim)
 
-        self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=False)
+        self.lstm = nn.LSTM(
+            config.emb_dim,
+            config.hidden_dim,
+            num_layers=1,
+            batch_first=True,
+            bidirectional=False,
+            dropout=0.10,
+        )
+
         init_lstm_wt(self.lstm)
 
         if config.pointer_gen:
