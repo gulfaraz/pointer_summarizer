@@ -56,10 +56,12 @@ def convert_input_to_string_sequence(input, vocab):
 
 
 class Encoder(nn.Module):
-    def __init__(self, vocab, elmo=None, finetune_glove=False):
+    def __init__(self, vocab, elmo=None, finetune_glove=False, use_cuda=use_cuda):
         super(Encoder, self).__init__()
         #self.embedding = nn.Embedding(config.vocab_size, config.emb_dim - config.elmo_dim)
         #init_wt_normal(self.embedding.weight)
+
+        self.use_cuda = use_cuda
 
         self.vocab = vocab
         self.lstm = nn.LSTM(
@@ -96,7 +98,7 @@ class Encoder(nn.Module):
 
         # Obtaining the character ids for ELMo
         character_ids = batch_to_ids(input_string_sequence)
-        if use_cuda:
+        if self.use_cuda:
             character_ids = character_ids.cuda()
 
         if self.using_elmo:
@@ -193,8 +195,10 @@ class Attention(nn.Module):
         return c_t, attn_dist, coverage
 
 class Decoder(nn.Module):
-    def __init__(self, vocab, elmo=None, finetune_glove=False):
+    def __init__(self, vocab, elmo=None, finetune_glove=False, use_cuda=use_cuda):
         super(Decoder, self).__init__()
+
+        self.use_cuda = use_cuda
         self.attention_network = Attention()
         # decoder
         # self.embedding = nn.Embedding(config.vocab_size, config.emb_dim)
@@ -250,7 +254,7 @@ class Decoder(nn.Module):
         # Obtaining the character ids for ELMo
 
         character_ids = batch_to_ids(input_string_sequence)
-        if use_cuda:
+        if self.use_cuda:
             character_ids = character_ids.cuda()
 
         if self.using_elmo:
@@ -314,7 +318,10 @@ class Model(object):
                  model_file_path=None,
                  is_eval=False,
                  use_elmo=False,
-                 finetune_glove=False):
+                 finetune_glove=False,
+                 use_cuda=use_cuda):
+
+        self.use_cuda = use_cuda
 
         if use_elmo:
             elmo = Elmo(
@@ -327,8 +334,8 @@ class Model(object):
         else:
             elmo = None
 
-        encoder = Encoder(vocab, elmo=elmo, finetune_glove=finetune_glove)
-        decoder = Decoder(vocab, elmo=elmo, finetune_glove=finetune_glove)
+        encoder = Encoder(vocab, elmo=elmo, finetune_glove=finetune_glove, use_cuda=use_cuda)
+        decoder = Decoder(vocab, elmo=elmo, finetune_glove=finetune_glove, use_cuda=use_cuda)
         reduce_state = ReduceState()
 
         # shared the embedding between encoder and decoder
@@ -338,7 +345,7 @@ class Model(object):
             decoder = decoder.eval()
             reduce_state = reduce_state.eval()
 
-        if use_cuda:
+        if self.use_cuda:
             encoder = encoder.cuda()
             decoder = decoder.cuda()
             reduce_state = reduce_state.cuda()

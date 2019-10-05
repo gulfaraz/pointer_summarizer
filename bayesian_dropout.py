@@ -9,11 +9,14 @@ from __future__ import unicode_literals, print_function, division
 # sys.setdefaultencoding('utf8')
 
 import os
+import sys
 import time
 from argparse import ArgumentParser
 from collections import defaultdict
 
-from tqdm import trange
+from tqdm import trange, tqdm
+from itertools import islice
+from pathlib import Path
 
 import torch
 from torch.autograd import Variable
@@ -58,14 +61,12 @@ class Beam(object):
         self.contexts = context
         self.coverages = coverage
 
-    def iterator(self):
-        return zip(
-            self.tokens,
-            self.log_probs,
-            self.states,
-            self.contexts,
-            self.coverages,
-        )
+    def iterator(self, stop=sys.maxsize):
+        return islice(zip(self.tokens,
+                          self.log_probs,
+                          self.states,
+                          self.contexts,
+                          self.coverages), stop)
 
     def extend(self, token, log_prob, state, context, coverage):
         return Beam(
@@ -112,7 +113,9 @@ class StopWatch:
 
 
 class BayesianDropout:
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, output_dir, use_elmo=False):
+
+        self.output_dir = output_dir
 
         self.vocab = Vocab(config.vocab_path, config.vocab_size)
         self.batcher = Batcher(config.decode_data_path, self.vocab, mode='decode',
@@ -120,7 +123,11 @@ class BayesianDropout:
         time.sleep(15)
 
         # we use training mode, so dropout is activated
-        self.model = Model(model_file_path, is_eval=False)
+        self.model = Model(self.vocab,
+                           model_file_path,
+                           is_eval=False,
+                           use_elmo=use_elmo,
+                           use_cuda=use_cuda)
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
@@ -240,7 +247,7 @@ class BayesianDropout:
 
     @torch.no_grad()
     def run_bayesian_dropout(
-            self, batch, conditioning_summary, num_experiments
+            self, batch, conditioning_summary, num_experiments, max_sentence_length=sys.maxsize
     ):
         # batch should have only one example
 
@@ -254,7 +261,10 @@ class BayesianDropout:
                    log_prob,
                    state,
                    context,
-                   coverage) in enumerate(conditioning_summary.iterator()):
+                   coverage) in enumerate(
+                       tqdm(conditioning_summary.iterator(max_sentence_length),
+                            total=len(conditioning_summary.tokens))
+                   ):
 
             for experiment in trange(num_experiments):
                 encoder_result = self.model.encoder(enc_batch, enc_lens)
@@ -293,12 +303,10 @@ class BayesianDropout:
                 # log_probs = torch.log(final_dist)
                 result[step].append(final_dist)
 
-
-            import pdb; pdb.set_trace()  # XXX BREAKPOINT
-
         stacked_result = defaultdict(int)
         for k, distributions in result.items():
             stacked_result[k] = torch.stack(distributions, 0)
+
 
         return stacked_result
 
@@ -308,27 +316,49 @@ class BayesianDropout:
             yield batch
             batch = self.batcher.next_batch()
 
-    @torch.no_grad()
-    def run_experiments(self, num_experiments):
-        import pdb; pdb.set_trace()  # XXX BREAKPOINT
+    def save_result(self, i, result):
+        save_path = Path(self.output_dir) / (str(i) + '.pt')
+        torch.save(result, save_path)
 
-        final_results = []
+    @torch.no_grad()
+    def run_experiments(self, num_experiments, max_num_summaries, max_sentence_length=sys.maxsize):
+
         for i, batch in enumerate(self.batches()):
+            if i > max_num_summaries:
+                break
+
             conditioning_summary = self.beam_search(batch)
             result = self.run_bayesian_dropout(batch, conditioning_summary,
-                                               num_experiments)
-            final_results.append(batch, result)
+                                               num_experiments,
+                                               max_sentence_length=max_sentence_length)
 
-        return final_results
+            self.save_result(i, result)
 
 
 def parse_arguments():
     parser = ArgumentParser()
-    parser.add_argument('-m', '--model', required=True, type=str, default=None)
-    parser.add_argument('-n', '--num_experiments', required=False, type=int,
-                        default=100)
+    parser.add_argument('-m', '--model', required=True, type=str, default=None,
+                        help='Model file path')
 
-    parser.add_argument('-d', '--dont_use_gpu', action='store_true')
+    parser.add_argument('-o', '--output_dir', required=True, type=str, default=None,
+                        help='Output path for saved probabilities')
+
+    parser.add_argument('-n', '--num_experiments', required=False, type=int,
+                        default=100,
+                        help="How many different outputs we would like to get for the same input")
+
+    parser.add_argument('-s', '--max_num_summaries', required=False, type=int,
+                        default=15000,
+                        help="Run the bayesian dropout on this many examples only")
+
+    parser.add_argument('-l', '--max_sentence_length', required=False, type=int,
+                        default=sys.maxsize,
+                        help="Only for testing")
+
+    parser.add_argument('-d', '--dont_use_gpu', action='store_true',
+                        help="This flag will try to disable GPU usage")
+    parser.add_argument("-e", "--use_elmo", required=False, action='store_true',
+                        help="Use Glove+Elmo embeddings together, otherwise only Glove")
 
     args = parser.parse_args()
 
@@ -342,10 +372,26 @@ def main():
     args = parse_arguments()
 
     model_file_path = args.model
+    output_dir = args.output_dir
     num_experiments = args.num_experiments
+    dont_use_gpu = args.dont_use_gpu
+    use_elmo = args.use_elmo
+    max_num_summaries = args.max_num_summaries
+    max_sentence_length = args.max_sentence_length
 
-    bayesian_dropout = BayesianDropout(model_file_path)
-    bayesian_dropout.run_experiments(num_experiments=num_experiments)
+    # experiment_name = '_'.join(os.basename(model_file_path).split('_')[1:])
+    model_file_basepath = Path(model_file_path)
+
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    if dont_use_gpu:
+        use_cuda = False
+        config.use_gpu = False
+
+    bayesian_dropout = BayesianDropout(model_file_path, use_elmo=use_elmo, output_dir=output_dir)
+    bayesian_dropout.run_experiments(num_experiments=num_experiments,
+                                     max_num_summaries=max_num_summaries,
+                                     max_sentence_length=max_sentence_length)
 
 
 if __name__ == "__main__":
