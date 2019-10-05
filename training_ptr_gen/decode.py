@@ -11,6 +11,8 @@ sys.path.append("..")
 import os
 import time
 
+import argparse
+
 import torch
 from torch.autograd import Variable
 
@@ -49,7 +51,7 @@ class Beam(object):
 
 
 class BeamSearch(object):
-    def __init__(self, model_file_path):
+    def __init__(self, model_file_path, use_elmo=False):
         model_name = os.path.basename(model_file_path)
         self._decode_dir = os.path.join(config.log_root, 'decode_%s' % (model_name))
         self._rouge_ref_dir = os.path.join(self._decode_dir, 'rouge_ref')
@@ -63,7 +65,11 @@ class BeamSearch(object):
                                batch_size=config.beam_size, single_pass=True)
         time.sleep(15)
 
-        self.model = Model(model_file_path, is_eval=True)
+        self.model = Model(self.vocab,
+                           model_file_path,
+                           is_eval=True,
+                           use_elmo=use_elmo)
+
 
     def sort_beams(self, beams):
         return sorted(beams, key=lambda h: h.avg_log_prob, reverse=True)
@@ -73,7 +79,10 @@ class BeamSearch(object):
         start = time.time()
         counter = 0
         batch = self.batcher.next_batch()
+        i = 0
         while batch is not None:
+            print(i)
+            i += 1
             # Run beam search to get best Hypothesis
             best_summary = self.beam_search(batch)
 
@@ -201,9 +210,26 @@ class BeamSearch(object):
 
         return beams_sorted[0]
 
+
+def parse_arguments(description):
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("-m",
+                        dest="model_filename",
+                        required=True,
+                        help="Model file for decode")
+
+    parser.add_argument("-e", "--use_elmo", required=False, action='store_true')
+    args = parser.parse_args()
+    print(args)
+
+    return args
+
+
 if __name__ == '__main__':
-    model_filename = "../data/log/train_1569843594/model/model_20000_1569868800"
-    beam_Search_processor = BeamSearch(model_filename)
+    args = parse_arguments("Decode script")
+    model_filename = args.model_filename
+
+    beam_Search_processor = BeamSearch(model_filename, use_elmo=args.use_elmo)
     beam_Search_processor.decode()
 
 

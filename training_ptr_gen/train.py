@@ -158,8 +158,8 @@ class Train(object):
             if iter % 10000 == 0:
                 self.save_model(running_avg_loss, iter)
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Train script")
+def parse_arguments(description):
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument("-m",
                         dest="model_file_path",
                         required=False,
@@ -168,6 +168,11 @@ if __name__ == '__main__':
     parser.add_argument("-e", "--use_elmo", required=False, action='store_true')
     parser.add_argument("-g", "--finetune_glove", required=False, action='store_true')
     args = parser.parse_args()
+    return args
+
+
+if __name__ == '__main__':
+    args = parse_arguments(description='Train script')
 
     import pdb; pdb.set_trace()  # XXX BREAKPOINT
 

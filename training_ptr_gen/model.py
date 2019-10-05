@@ -96,9 +96,10 @@ class Encoder(nn.Module):
 
         # Obtaining the character ids for ELMo
         character_ids = batch_to_ids(input_string_sequence)
-        character_ids = character_ids.cuda()
+        if use_cuda:
+            character_ids = character_ids.cuda()
 
-        if using_elmo:
+        if self.using_elmo:
             # Obtaining the ELMo embeddings
             elmo_embeddings = self.elmo(character_ids)
             elmo_embeddings = elmo_embeddings['elmo_representations'][0]
@@ -111,7 +112,7 @@ class Encoder(nn.Module):
         # print(input)
 
         glove_embedded = self.glove(input) # 3D Tensor Num_Sentence X Max_Sentence_Length X Embedding Size
-        if using_elmo:
+        if self.using_elmo:
             embedded = torch.cat((glove_embedded, elmo_embeddings), dim = 2)
         else:
             embedded = glove_embedded
@@ -248,7 +249,8 @@ class Decoder(nn.Module):
         # Obtaining the character ids for ELMo
 
         character_ids = batch_to_ids(input_string_sequence)
-        character_ids = character_ids.cuda()
+        if use_cuda:
+            character_ids = character_ids.cuda()
 
         if self.using_elmo:
             # Obtaining the ELMo embeddings
@@ -306,7 +308,12 @@ class Decoder(nn.Module):
         return final_dist, s_t, c_t, attn_dist, p_gen, coverage
 
 class Model(object):
-    def __init__(self, vocab, model_file_path=None, is_eval=False, use_elmo=False, finetune_glove=False):
+    def __init__(self,
+                 vocab,
+                 model_file_path=None,
+                 is_eval=False,
+                 use_elmo=False,
+                 finetune_glove=False):
 
         if use_elmo:
             elmo = Elmo(
