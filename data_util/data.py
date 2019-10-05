@@ -40,6 +40,11 @@ class Vocab(object):
     self._id_to_word = {} # Index to Word
     self._count = 0 # keeps track of total number of words in the Vocab
 
+    # Creating GloVe vectors
+    glove_dict = GloVe(name='6B')
+    #glove_dict = WordEmbeddings('glove')
+    glove_embedding_matrix = np.zeros((max_size, config.emb_dim - config.elmo_dim))
+
     # [UNK], [PAD], [START] and [STOP] get the ids 0,1,2,3.
     for w in SPECIAL_TOKENS:
       self._word_to_id[w] = self._count

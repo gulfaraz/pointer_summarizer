@@ -210,6 +210,7 @@ class Decoder(nn.Module):
         else:
             self.using_elmo = False
 
+        self.vocab = vocab
         self.x_context = nn.Linear(config.hidden_dim * 2 + config.emb_dim, config.emb_dim)
 
         self.lstm = nn.LSTM(

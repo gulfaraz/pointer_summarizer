@@ -45,7 +45,7 @@ class Train(object):
         if not os.path.exists(self.model_dir):
             os.mkdir(self.model_dir)
 
-        self.summary_writer = tf.summary.FileWriter(train_dir)
+        self.summary_writer = tf.compat.v1.summary.FileWriter(train_dir)
 
 
     def save_model(self, running_avg_loss, iter):
