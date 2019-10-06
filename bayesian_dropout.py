@@ -61,12 +61,12 @@ class Beam(object):
         self.contexts = context
         self.coverages = coverage
 
-    def iterator(self, stop=sys.maxsize):
+    def iterator(self, stop=None, start=0):
         return islice(zip(self.tokens,
                           self.log_probs,
                           self.states,
                           self.contexts,
-                          self.coverages), stop)
+                          self.coverages), start, stop)
 
     def extend(self, token, log_prob, state, context, coverage):
         return Beam(
@@ -218,7 +218,9 @@ class BayesianDropout:
 
                 # for each of the top 2*beam_size hyps:
                 for j in range(config.beam_size * 2):
-                    new_beam = h.extend(token=topk_ids[i, j].item(),
+                    token_id = topk_ids[i, j].item()
+                    token_id = 1 if token_id >= self.vocab.size() else token_id
+                    new_beam = h.extend(token=token_id,
                                         log_prob=topk_log_probs[i, j].item(),
                                         state=state_i,
                                         context=context_i,
@@ -247,7 +249,13 @@ class BayesianDropout:
 
     @torch.no_grad()
     def run_bayesian_dropout(
-            self, batch, conditioning_summary, num_experiments, max_sentence_length=sys.maxsize
+        self,
+        batch,
+        conditioning_summary,
+        num_experiments,
+        max_sentence_length=sys.maxsize,
+        start=0,
+        stop=100,
     ):
         # batch should have only one example
 
@@ -262,11 +270,12 @@ class BayesianDropout:
                    state,
                    context,
                    coverage) in enumerate(
-                       tqdm(conditioning_summary.iterator(max_sentence_length),
+                       tqdm(conditioning_summary.iterator(),
                             total=len(conditioning_summary.tokens))
                    ):
 
             for experiment in trange(num_experiments):
+                print("Experiment:", experiment)
                 encoder_result = self.model.encoder(enc_batch, enc_lens)
                 encoder_outputs, encoder_feature, encoder_hidden = encoder_result
 
@@ -321,16 +330,22 @@ class BayesianDropout:
         torch.save(result, save_path)
 
     @torch.no_grad()
-    def run_experiments(self, num_experiments, max_num_summaries, max_sentence_length=sys.maxsize):
+    def run_experiments(self,
+                        num_experiments,
+                        max_num_summaries,
+                        max_sentence_length=sys.maxsize,
+                        start=0,
+                        num_examples=20):
 
-        for i, batch in enumerate(self.batches()):
+        for i, batch in enumerate(islice(self.batches(), start, start+num_examples), start):
             if i > max_num_summaries:
                 break
 
             conditioning_summary = self.beam_search(batch)
             result = self.run_bayesian_dropout(batch, conditioning_summary,
-                                               num_experiments,
-                                               max_sentence_length=max_sentence_length)
+                                            num_experiments,
+                                            max_sentence_length=max_sentence_length,
+                                            start=start)
 
             self.save_result(i, result)
 
@@ -391,7 +406,8 @@ def main():
     bayesian_dropout = BayesianDropout(model_file_path, use_elmo=use_elmo, output_dir=output_dir)
     bayesian_dropout.run_experiments(num_experiments=num_experiments,
                                      max_num_summaries=max_num_summaries,
-                                     max_sentence_length=max_sentence_length)
+                                     max_sentence_length=max_sentence_length,
+                                     start=100)
 
 
 if __name__ == "__main__":
