@@ -254,9 +254,10 @@ class Decoder(nn.Module):
 
 
         # y_t_1_embd = embedding(y_t_1)
+        # __import__('pdb').set_trace()
         input_string_sequence = [
             [self.vocab._id_to_word[int(id.item())].decode("utf-8")]
-            if y_t_1 < self.vocab.size() else self.vocab._id_to_word[0].decode("utf-8")
+            if id < self.vocab.size() else [self.vocab._id_to_word[0].decode("utf-8")]
             for id in y_t_1
         ]
 
