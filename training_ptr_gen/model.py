@@ -48,11 +48,20 @@ def convert_input_to_string_sequence(input, vocab):
     input_string_sequence = []
 
     for sentence in input:
+        decoded_sentence = []
         for word_id in sentence:
             word_id = int(word_id.item())
             word_id = word_id if word_id < vocab.size() else 1
-            next_elem = vocab._id_to_word[word_id].decode('utf-8')
-            input_string_sequence.append([next_elem])
+            next_elem = vocab._id_to_word[word_id].decode("utf-8")
+
+            decoded_sentence.append(next_elem)
+
+        input_string_sequence.append(decoded_sentence)
+
+
+    for sentence in input:
+
+        input_string_sequence.append([vocab._id_to_word[int(word_id.item())].decode('utf-8') for word_id in sentence])
 
     return input_string_sequence
 
