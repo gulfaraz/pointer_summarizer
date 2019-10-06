@@ -255,11 +255,21 @@ class Decoder(nn.Module):
 
         # y_t_1_embd = embedding(y_t_1)
         # __import__('pdb').set_trace()
-        input_string_sequence = [
-            [self.vocab._id_to_word[int(id.item())].decode("utf-8")]
-            if id < self.vocab.size() else [self.vocab._id_to_word[0].decode("utf-8")]
-            for id in y_t_1
-        ]
+        input_string_sequence = []
+        for i in y_t_1:
+            ii = i.item()
+            if ii < self.vocab.size():
+                next_elem = self.vocab._id_to_word[int(ii)].decode("utf-8")
+            else:
+                next_elem = self.vocab._id_to_word[1].decode("utf-8")
+
+            input_string_sequence.append([next_elem])
+
+        # input_string_sequence = [
+        #     [self.vocab._id_to_word[int(id.item())].decode("utf-8")]
+        #     if id < self.vocab.size() else [self.vocab._id_to_word[0].decode("utf-8")]
+        #     for id in y_t_1
+        # ]
 
         # Obtaining the character ids for ELMo
 
