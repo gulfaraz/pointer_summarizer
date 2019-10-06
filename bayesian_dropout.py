@@ -338,7 +338,7 @@ class BayesianDropout:
                         num_examples=20):
 
         for i, batch in enumerate(islice(self.batches(), start, start+num_examples), start):
-            if i > max_num_summaries:
+            if i > max_num_summaries + start:
                 break
 
             conditioning_summary = self.beam_search(batch)
@@ -365,6 +365,10 @@ def parse_arguments():
     parser.add_argument('-s', '--max_num_summaries', required=False, type=int,
                         default=15000,
                         help="Run the bayesian dropout on this many examples only")
+
+    parser.add_argument('-b', '--beginning', required=False, type=int,
+                        default=0,
+                        help="Begin with this summary, not the first one.")
 
     parser.add_argument('-l', '--max_sentence_length', required=False, type=int,
                         default=sys.maxsize,
@@ -393,6 +397,7 @@ def main():
     use_elmo = args.use_elmo
     max_num_summaries = args.max_num_summaries
     max_sentence_length = args.max_sentence_length
+    beginning = args.beginning
 
     # experiment_name = '_'.join(os.basename(model_file_path).split('_')[1:])
     model_file_basepath = Path(model_file_path)
@@ -407,7 +412,7 @@ def main():
     bayesian_dropout.run_experiments(num_experiments=num_experiments,
                                      max_num_summaries=max_num_summaries,
                                      max_sentence_length=max_sentence_length,
-                                     start=100)
+                                     start=beginning)
 
 
 if __name__ == "__main__":
