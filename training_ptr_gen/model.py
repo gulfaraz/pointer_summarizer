@@ -63,6 +63,11 @@ class Encoder(nn.Module):
 
         self.use_cuda = use_cuda
 
+        if elmo is not None:
+            emb_dim = config.glove_dim + config.elmo_dim
+        else:
+            emb_dim = config.glove_dim
+
         self.vocab = vocab
         self.lstm = nn.LSTM(
             config.emb_dim,
@@ -249,7 +254,11 @@ class Decoder(nn.Module):
 
 
         # y_t_1_embd = embedding(y_t_1)
-        input_string_sequence = [[self.vocab._id_to_word[int(id.item())].decode("utf-8")] for id in y_t_1]
+        input_string_sequence = [
+            [self.vocab._id_to_word[int(id.item())].decode("utf-8")]
+            if y_t_1 < self.vocab.size() else [0]
+            for id in y_t_1
+        ]
 
         # Obtaining the character ids for ELMo
 
