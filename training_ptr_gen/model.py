@@ -49,7 +49,6 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         #self.embedding = nn.Embedding(config.vocab_size, config.emb_dim - config.elmo_dim)
         #init_wt_normal(self.embedding.weight)
-
         self.vocab = vocab
         self.lstm = nn.LSTM(config.emb_dim, config.hidden_dim, num_layers=1, batch_first=True, bidirectional=True)
         init_lstm_wt(self.lstm)
@@ -261,9 +260,10 @@ class Model(object):
         self.encoder = encoder
         self.decoder = decoder
         self.reduce_state = reduce_state
-
         if model_file_path is not None:
             state = torch.load(model_file_path, map_location= lambda storage, location: storage)
-            self.encoder.load_state_dict(state['encoder_state_dict'])
+            self.encoder.load_state_dict(state['encoder_state_dict'], strict=False)
+            self.encoder.vocab.glove_embedding_matrix.weight.data = state['encoder_state_dict'][
+                'glove.weight'].data
             self.decoder.load_state_dict(state['decoder_state_dict'], strict=False)
             self.reduce_state.load_state_dict(state['reduce_state_dict'])

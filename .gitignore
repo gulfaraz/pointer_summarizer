@@ -5,3 +5,7 @@
 *.DESKTOP-TEJDDRI
 *.zip
 data/finished_files/vocab
+*.txt
+*.pt
+data/log/finished_files/vocab
+data/log/model_glove
