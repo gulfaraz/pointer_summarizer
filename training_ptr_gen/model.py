@@ -58,11 +58,6 @@ def convert_input_to_string_sequence(input, vocab):
 
         input_string_sequence.append(decoded_sentence)
 
-
-    for sentence in input:
-
-        input_string_sequence.append([vocab._id_to_word[int(word_id.item())].decode('utf-8') for word_id in sentence])
-
     return input_string_sequence
 
 
