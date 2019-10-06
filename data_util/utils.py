@@ -83,10 +83,10 @@ def write_for_rouge(reference_sents, decoded_words, ex_index,
   ref_file = os.path.join(_rouge_ref_dir, "%06d_reference.txt" % ex_index)
   decoded_file = os.path.join(_rouge_dec_dir, "%06d_decoded.txt" % ex_index)
 
-  with open(ref_file, "w") as f:
+  with open(ref_file, "w", encoding="utf-8") as f:
     for idx, sent in enumerate(reference_sents):
       f.write(sent) if idx == len(reference_sents) - 1 else f.write(sent + "\n")
-  with open(decoded_file, "w") as f:
+  with open(decoded_file, "w", encoding="utf-8") as f:
     for idx, sent in enumerate(decoded_sents):
       f.write(sent) if idx == len(decoded_sents) - 1 else f.write(sent + "\n")
 
