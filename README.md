@@ -99,7 +99,7 @@ optional arguments:
 
 ## Bayesian Dropout experiments
 
-Run the [bayesion\_dropout.py](bayesian_dropout.py) script.
+Run the [bayesian\_dropout.py](bayesian_dropout.py) script.
 
 ```
 
@@ -128,7 +128,7 @@ optional arguments:
 
 ```
 
-
+<!--
 > # Original readme
 
 > pytorch implementation of *[Get To The Point: Summarization with Pointer-Generator Networks](https://arxiv.org/abs/1704.04368)*
@@ -188,7 +188,7 @@ optional arguments:
 
 > Note:
 > * It is tested on pytorch 0.4 with python 2.7
-> * You need to setup [pyrouge](https://github.com/andersjo/pyrouge) to get the rouge score
+> * You need to setup [pyrouge](https://github.com/andersjo/pyrouge) to get the rouge score -->
 
 
 
