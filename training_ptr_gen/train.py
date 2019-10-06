@@ -162,19 +162,22 @@ def parse_arguments(description):
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument("-m",
                         dest="model_file_path",
-                        required=False,
+                        required=True,
                         default=None,
                         help="Model file for retraining (default: None).")
-    parser.add_argument("-e", "--use_elmo", required=False, action='store_true')
-    parser.add_argument("-g", "--finetune_glove", required=False, action='store_true')
+
+    parser.add_argument("-g", "--finetune_glove", required=False, action='store_true',
+                        help="Finetune the glove embeddings")
+
+    parser.add_argument("-e", "--use_elmo", required=False, action='store_true',
+                        help="Use elmo embeddings too during the training (no finetuning).")
+
     args = parser.parse_args()
     return args
 
 
 if __name__ == '__main__':
     args = parse_arguments(description='Train script')
-
-    import pdb; pdb.set_trace()  # XXX BREAKPOINT
 
     train_processor = Train(args.use_elmo, args.finetune_glove)
     train_processor.trainIters(config.max_iterations, args.model_file_path)

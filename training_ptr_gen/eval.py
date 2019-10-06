@@ -3,6 +3,8 @@ from __future__ import unicode_literals, print_function, division
 import os
 import time
 import sys
+sys.path.append('..')
+import argparse
 
 import tensorflow as tf
 import torch
@@ -85,8 +87,23 @@ class Evaluate(object):
             batch = self.batcher.next_batch()
 
 
+def parse_arguments(description):
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument("-m",
+                        dest="model_filename",
+                        required=True,
+                        help="Saved model file from training.")
+    args = parser.parse_args()
+    print(args)
+    return args
+
+
 if __name__ == '__main__':
-    model_filename = "../data/log/train_1569076557/model/model_50_1569077257" #sys.argv[1]
+    args = parse_arguments("Eval script")
+
+    model_filename = args.model_filename
+
+    # model_filename = "../data/log/train_1569076557/model/model_50_1569077257" #sys.argv[1]
     eval_processor = Evaluate(model_filename)
     eval_processor.run_eval()
 

@@ -216,9 +216,10 @@ def parse_arguments(description):
     parser.add_argument("-m",
                         dest="model_filename",
                         required=True,
-                        help="Model file for decode")
+                        help="Saved model file from training. This will be used to get the summaries")
 
-    parser.add_argument("-e", "--use_elmo", required=False, action='store_true')
+    parser.add_argument("-e", "--use_elmo", required=False, action='store_true',
+                        help="Use elmo embeddings too (must match the model), or glove only")
     args = parser.parse_args()
     print(args)
 
