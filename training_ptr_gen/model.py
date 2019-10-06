@@ -45,11 +45,14 @@ def init_wt_unif(wt):
     wt.data.uniform_(-config.rand_unif_init_mag, config.rand_unif_init_mag)
 
 def convert_input_to_string_sequence(input, vocab):
-
     input_string_sequence = []
 
     for sentence in input:
-            input_string_sequence.append([vocab._id_to_word[int(word_id.item())].decode('utf-8') for word_id in sentence])
+        for word_id in sentence:
+            word_id = int(word_id.item())
+            word_id = word_id if word_id < vocab.size() else 1
+            next_elem = vocab._id_to_word[word_id].decode('utf-8')
+            input_string_sequence.append([next_elem])
 
     return input_string_sequence
 
